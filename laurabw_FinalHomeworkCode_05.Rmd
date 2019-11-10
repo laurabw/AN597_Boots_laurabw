@@ -1,0 +1,108 @@
+---
+title: "Homework 5"
+author: "Laura Brubaker-Wittman"
+date: "11/6/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Bootstrapping Standard Errors and CIs for Linear Models
+
+**Directions:** 
+
+*When we initially discussed the central limit theorem and confidence intervals, we showed how we could use
+bootstrapping to estimate standard errors and confidence intervals around certain parameter values, like the mean.
+Using bootstrapping, we could also do the same for estimating standard errors and CIs around regression parameters, such as β coefficients.*
+
+**Question #1:**
+
+*Using the “KamilarAndCooperData.csv” dataset, run a linear regression looking at log(HomeRange_km2) in relation to log(Body_mass_female_mean) and report your β coeffiecients (slope and intercept).*
+
+First, I will call up the Kamilar and Cooper dataset:
+
+```{r}
+library(curl)
+f <- curl("https://raw.githubusercontent.com/fuzzyatelin/fuzzyatelin.github.io/master/AN597_Fall19/KamilarAndCooperData.csv")
+d <- read.csv(f, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+head(d)
+```
+
+Looks good! Now we can use our lm() function to see if we can get at the answers we are looking for:
+
+```{r}
+d$loghr <- log(d$HomeRange_km2) # assigning the log of home range to loghr
+d$logbm <- log(d$Body_mass_female_mean) # assigning mean female body mass to logbm
+log_model <- lm(data = d, loghr ~ logbm)
+log_model
+```
+
+So, this is telling us our β coefficients are -9.441 for our β~0~ or **intercept** and 1.036 for our β~1~ or
+**slope**.
+
+I believe this is all that Question #1 is asking for, so we will move on to Question #2!
+
+**Question #2:**
+
+*Then, use bootstrapping to sample from your data 1000 times with replacement, each time fitting the same model
+and calculating the same coefficients. This generates a sampling distribution for each β coefficient.*
+
+1. *Estimate the standard error for each of your β coefficients as the standard deviation of the sampling
+distribution from your bootstrap and determine the 95% CI for each of your β coefficients based on the appropriate
+quantiles from your sampling distribution.*
+
+2. *How does the former compare to the SE estimated from your entire dataset using the formula for standard error
+implemented in lm()?*
+
+3. *How does the latter compare to the 95% CI estimated from your entire dataset?*
+
+Ok, so I want to start with bootstrapping. One question I have right off the bat is how do I decide what my sampling size should be? It doesn not specify in the homework directions, and I am not sure what the rules are for how one might decide this, though I am sure they exist. Let's try 20 and see what happens?
+
+So, after much looking around on the internet, here is the code I came up with (thanks Google!):
+
+```{r}
+log_boot <- numeric(1000)
+for (i in 1:1000) {
+  this.ind <- sample(213, 213, replace = TRUE)
+  log_boot[i] <- coef(lm
+                      (d$loghr[this.ind] ~ d$logbm[this.ind])) [2]
+  }
+plot(density(log_boot), lwd = 3, col = "steelblue")
+abline(v = coef(lm(d$loghr ~ d$logbm)) [2], lwd = 3, col = "gold")
+```
+
+I used 213 as that was the size of the original number of observations, though I think there could be arguments for why you could use a different number. I honestly am not sure if this is exactly what we are looking for, but I do think it is interesting that it gave back a something kind of resembling a normal distribution?
+
+For the confidence intervals, I used a function, quantile(), that we learned in Module 7, and just used amounts that would set us up for a 95% confidence interval
+
+```{r}
+quantile(log_boot, c(0.025, 0.975))
+```
+
+And here is for standard error, though I am worried this is too straightforward? Am I missing something?
+
+```{r}
+library(sciplot)
+se(log_boot)
+```
+
+It also asks us to compare this standard error to the one we found in Question 1, using the lm() function. Let's pull this out now:
+
+```{r}
+summary(log_model)
+```
+
+This shows a standard error of 0.0848. which is quite a bit different from 0.0024... hmmmm. Not sure what is going on here, though it is possible I made mistake, especially in the original bootstrapping. I will be interested to see what others came up with! Or perhaps this SE is smaller due to the number of repeat sampling the bootstrapping process goes through?
+
+
+## Challenges:
+
+1. Not sure if I am doing a bootstrap process correctly for a linear regression. I looked up a lot of information on this, and there seemed to be multiple solutions for how to do this, though for many I was lost on what to put for certain parts of the function.
+
+2. Not sure if my standard errors are correct. This also means I am just not familar enough with standard error to know if these numbers make sense or not.
+
+3. Did not even try the extra credit. I feel pretty lost as far as writing functions. I think I need to find some online tutorials and examples to continue to go through that until I feel more comfortable with it.
+
+4. Not really a challenge, but I was so interested in how many packages were suggested for doing bootstrapping when I did some internet research! The number of packages available is just overwhelming, and while that is exciting to know there are multiple ways to find answers to research questions, it is also a bit daunting to know if you are doing it the way that is best for your data or is the most efficient. I guess that is part of the learning process!
